@@ -1,36 +1,33 @@
-- name: Execute as user
-  block:
-    - name: Create tmpdir
-      tempfile:
-        prefix: "gpg_import_"
-        state: directory
-      register: _gpg_import_directory
-    
-    - name: Copy gpg keys
-      copy:
-        content: "{{ item.content }}"
-        dest: "{{ _gpg_import_directory.path }}/{{ item.name }}"
-        owner: "{{ gpg_import_user }}"
-        mode:  0600
-      register: _gpg_import_files
-      with_items:
-        - { name: public.key, content: "{{ gpg_import_public_key }}" }
-        - { name: private.key, content: "{{ gpg_import_private_key }}" }
-      loop_control:
-        label: "{{ item.name }}"
+- name: Create tmpdir
+  file:
+    dest: "/tmp/import_gpg"
+    owner: "{{ gpg_import_user }}"
+    mode: 0700
+    state: directory
+  register: _gpg_import_directory
 
-    - name: Import keys
-      shell: "gpg --batch --import {{ item.dest }}"
-      register: _gpg_import_results
-      with_items:
-        - "{{ _gpg_import_files.results }}"
-      loop_control:
-        label: "{{ item.dest }}"
-        
-    - name: Delete tmpdir
-      file:
-        state: absent
-        path: "{{ _gpg_import_directory.path }}"
-  
-  become: yes
-  become_user: "{{ gpg_import_user }}"
+- name: Copy gpg keys
+  copy:
+    content: "{{ item.content }}"
+    dest: "{{ _gpg_import_directory.path }}/{{ item.name }}"
+    mode:  0600
+    owner: "{{ gpg_import_user }}"
+  register: _gpg_import_files
+  with_items:
+    - { name: public.key, content: "{{ gpg_import_public_key }}" }
+    - { name: private.key, content: "{{ gpg_import_private_key }}" }
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Import keys
+  shell: "su - {{ gpg_import_user }} -c 'gpg --batch --import {{ item.dest }}'"
+  register: _gpg_import_results
+  with_items:
+    - "{{ _gpg_import_files.results }}"
+  loop_control:
+    label: "{{ item.dest }}"
+
+- name: Delete tmpdir
+  file:
+    state: absent
+    path: "{{ _gpg_import_directory.path }}"
