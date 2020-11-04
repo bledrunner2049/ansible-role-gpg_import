@@ -1,0 +1,3 @@
+galaxy_info:
+  role_name: gpg_import
+  description: Install the aptly service
